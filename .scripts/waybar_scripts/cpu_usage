@@ -1,0 +1,49 @@
+#!/usr/bin/env python3.11
+
+from subprocess import check_output
+from json import dumps
+
+# color = "%{F#00FF00}"
+COLOR_ALT = "%{F#7c7c7c}"
+COLOR_END = "%{F-}"
+# underline = "%{u#00FF00}%{+u}"
+
+proc_info = check_output(["mpstat"]).decode("utf-8")
+cpu_used = float((proc_info.splitlines()[3].split()[-1]).replace(",", "."))
+cpu_used = round(100 - cpu_used, 1)
+
+if 0 <= cpu_used < 15:
+    cpu_class = "verylow"
+    color = "%{F#00FF00}"
+    underline = "%{u#00FF00}%{+u}"
+elif 15 <= cpu_used < 30:
+    cpu_class = "low"
+    color = "%{F#8ef902}"
+    underline = "%{u#8ef902}%{+u}"
+elif 30 <= cpu_used < 40:
+    cpu_class = "med"
+    color = "%{F#baf719}"
+    underline = "%{u#baf719}%{+u}"
+elif 40 <= cpu_used < 60:
+    cpu_class = "medhigh"
+    color = "%{F#FFAE00}"
+    underline = "%{u#FFAE00}%{+u}"
+elif 60 <= cpu_used < 90:
+    cpu_class = "high"
+    color = "%{F#ff9100}"
+    underline = "%{u#ff9100}%{+u}"
+elif cpu_used >= 90:
+    cpu_class = "veryhigh"
+    color = "%{F#FF0000}"
+    underline = "%{u#FF0000}%{+u}"
+
+
+result_dict = {
+    "text": f"{cpu_used}% ",
+    "tooltip": "Current CPU Usage",
+    "class": f"{cpu_class}",
+}
+result_json = dumps(result_dict)
+print(result_json)
+
+# print(f"{underline}{COLOR_ALT}CPU{COLOR_END} {color}{cpu_used}%{COLOR_END}")

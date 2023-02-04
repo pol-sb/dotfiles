@@ -1,0 +1,163 @@
+#!/usr/bin/env python3.11
+
+from regex import findall
+from subprocess import call, check_output
+import json
+
+RE1 = r"Device: /org/freedesktop/UPower/devices/battery_BAT0([\s\S]*)capacity:"
+RE_PERC = r"percentage.*"
+
+RE2 = r"Device: /org/freedesktop/UPower/devices/line_power_AC0([\s\S]*)icon-name:"
+RE_CHAR = r"online:.*"
+
+RE3 = r"Device: /org/freedesktop/UPower/devices/battery_BAT0([\s\S]*)percentage:"
+RE_REMA = r"to empty:.*"
+
+WRN_FLAG_FILE = "batt_flag.inp"
+
+with open(WRN_FLAG_FILE, "r") as f:
+    warning_flag = int(f.read().strip())
+
+battery_text = check_output(["upower", "-d"])
+regex1_text = findall(RE1, battery_text.decode())[0]
+
+percentage = findall(RE_PERC, regex1_text)[0].split()[-1]
+
+regex2_text = findall(RE2, battery_text.decode())[0]
+charger = findall(RE_CHAR, regex2_text)[0].split()[-1]
+
+charger_orig = charger
+
+if charger == "yes":
+    charger = "- "
+    # The next two vars are added so nothing is displayed when charged
+    # is plugged
+    final_remain = " "
+else:
+    charger = "- "
+
+    regex3_text = findall(RE3, battery_text.decode())[0]
+    remaining_time = findall(RE_REMA, regex3_text)[0].split()[-2].replace(",", ".")
+    remaining_unit = findall(RE_REMA, regex3_text)[0].split()[-1]
+
+    if remaining_unit == "hours":
+        remaining_unit = "h"
+    elif remaining_unit == "minutes":
+        remaining_unit = "min"
+
+    final_remain = f" ({remaining_time} {remaining_unit}) "
+
+
+def return_dict(battery_val, tooltip_val, class_val):
+    if tooltip_val == {" "}:
+        result_dict = {
+            "text": battery_val,
+            "tooltip": f"Charging...",
+            "class": class_val,
+        }
+
+    else:
+        result_dict = {
+            "text": battery_val,
+            "tooltip": f"Remaining: {list(tooltip_val)[0]}",
+            "class": class_val,
+        }
+    result_json = json.dumps(result_dict)
+    return result_json
+
+
+if float(percentage[:-1]) == 100:
+    if charger_orig == "yes":
+        class_val = "full-charge"
+    else:
+        class_val = "full"
+    res_json = return_dict(f"{percentage}  {charger}", {final_remain}, class_val)
+    print(res_json)
+    if warning_flag == 1:
+        with open(WRN_FLAG_FILE, "w") as f:
+            f.write("0")
+
+
+if float(percentage[:-1]) >= 90:
+    if charger_orig == "yes":
+        class_val = "veryhigh-charge"
+    else:
+        class_val = "veryhigh"
+    res_json = return_dict(f"{percentage}  {charger}", {final_remain}, class_val)
+    print(res_json)
+    # print(f"{underline}{color} {percentage}{final_remain}{charger}")
+    if warning_flag == 1:
+        with open(WRN_FLAG_FILE, "w") as f:
+            f.write("0")
+
+
+if float(percentage[:-1]) >= 75:
+    if charger_orig == "yes":
+        class_val = "high-charge"
+    else:
+        class_val = "high"
+    # print(f"{underline}{color} {percentage}{final_remain}{charger}")
+    res_json = return_dict(f"{percentage}  {charger}", {final_remain}, class_val)
+    print(res_json)
+    if warning_flag == 1:
+        with open(WRN_FLAG_FILE, "w") as f:
+            f.write("0")
+
+
+elif float(percentage[:-1]) >= 60:
+    if charger_orig == "yes":
+        class_val = "medhigh-charge"
+    else:
+        class_val = "medhigh"
+
+    res_json = return_dict(f"{percentage}  {charger}", {final_remain}, class_val)
+    print(res_json)
+    if warning_flag == 1:
+        with open(WRN_FLAG_FILE, "w") as f:
+            f.write("0")
+
+
+elif float(percentage[:-1]) >= 50:
+    if charger_orig == "yes":
+        class_val = "med-charge"
+    else:
+        class_val = "med"
+    res_json = return_dict(f"{percentage}  {charger}", {final_remain}, class_val)
+    print(res_json)
+    if warning_flag == 1:
+        with open(WRN_FLAG_FILE, "w") as f:
+            f.write("0")
+
+
+elif float(percentage[:-1]) >= 25:
+    if charger_orig == "yes":
+        class_val = "low-charge"
+    else:
+        class_val = "low"
+    res_json = return_dict(f"{percentage}  {charger}", {final_remain}, class_val)
+    print(res_json)
+    if warning_flag == 1:
+        with open(WRN_FLAG_FILE, "w") as f:
+            f.write("0")
+
+
+elif float(percentage[:-1]) < 25:
+    if warning_flag == 0:
+        call(
+            [
+                "notify-send",
+                "-u",
+                "Critical",
+                "Battery Warning",
+                f"Battery is low ({percentage[:-1]}%)",
+            ]
+        )
+        with open(WRN_FLAG_FILE, "w") as f:
+            f.write("1")
+
+    if charger_orig == "yes":
+        class_val = "verylow-charge"
+    else:
+        class_val = "verylow-notcharge"
+    res_json = return_dict(f"{percentage}  {charger}", {final_remain}, class_val)
+    print(res_json)

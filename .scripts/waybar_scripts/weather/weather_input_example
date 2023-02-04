@@ -1,0 +1,5 @@
+# This file contains inputs necessary for the weather script. Rename this file to 'weather_input' and replace the examples with real data.
+# The next line should be a openweathermap API key,
+12345678912345678dasfljhsdgfjshudk
+# The next line should be the default city used for gathering weather data.
+Barcelona

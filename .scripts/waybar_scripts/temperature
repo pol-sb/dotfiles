@@ -1,0 +1,55 @@
+#!/usr/bin/env python3.11
+
+from subprocess import check_output
+from json import dumps
+
+# color = "%{F#00FF00}"
+COLOR_ALT = "%{F#7c7c7c}"
+COLOR_END = "%{F-}"
+# underline = "%{u#00FF00}%{+u}"
+
+proc_info = check_output(["sensors", "coretemp-isa-0000"]).decode("utf-8")
+temp = float(
+    (proc_info.splitlines()[2].split()[3])
+    .replace("C", "")
+    .replace("+", "")
+    .replace("°", "")
+)
+
+if temp < 45:
+    status_val = "verylow"
+    color = "%{F#00FF00}"
+    underline = "%{u#00FF00}%{+u}"
+elif 45 <= temp < 60:
+    status_val = "low"
+    color = "%{F#8ef902}"
+    underline = "%{u#8ef902}%{+u}"
+elif 60 <= temp < 68:
+    status_val = "normal"
+    color = "%{F#baf719}"
+    underline = "%{u#baf719}%{+u}"
+elif 68 <= temp < 80:
+    status_val = "medhigh"
+    color = "%{F#FFAE00}"
+    underline = "%{u#FFAE00}%{+u}"
+elif 80 <= temp < 90:
+    status_val = "high"
+    color = "%{F#ff9100}"
+    underline = "%{u#ff9100}%{+u}"
+elif temp >= 90:
+    status_val = "veryhigh"
+    color = "%{F#FF0000}"
+    underline = "%{u#FF0000}%{+u}"
+
+
+result_dict = {
+    "text": f"{int(temp)}°C ",
+    "tooltip": "Current CPU Temperature",
+    "class": status_val,
+}
+result_json = dumps(result_dict)
+
+print(result_json)
+
+
+# print(f"{underline}{COLOR_ALT}{COLOR_END} {color}{temp}C{COLOR_END}")

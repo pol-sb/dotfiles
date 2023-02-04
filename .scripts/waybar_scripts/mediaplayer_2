@@ -1,0 +1,88 @@
+#!/usr/bin/env python3.11
+
+from json import dumps
+from subprocess import check_output, DEVNULL, Popen, STDOUT, PIPE
+
+
+def create_json(text_val, tooltip_val, style="default"):
+    result_dict = {"text": text_val, "tooltip": tooltip_val, "class": style}
+    result_json = dumps(result_dict)
+    return result_json
+
+
+status = (
+    Popen(
+        ["playerctl", "status"],
+        stderr=STDOUT,
+        stdout=PIPE,
+    )
+    .stdout.read()
+    .decode("utf-8")
+    .strip()
+)
+
+
+if status != "No players found":
+    title = (
+        check_output(
+            ["playerctl", "metadata", "title"],
+            stderr=DEVNULL,
+        )
+        .decode("utf-8")
+        .strip()
+    )
+
+    artist = (
+        check_output(
+            ["playerctl", "metadata", "artist"],
+            stderr=DEVNULL,
+        )
+        .decode("utf-8")
+        .strip()
+    )
+
+    album = (
+        check_output(
+            ["playerctl", "metadata", "album"],
+            stderr=DEVNULL,
+        )
+        .decode("utf-8")
+        .strip()
+    )
+
+    meta = (
+        check_output(
+            ["playerctl", "metadata"],
+            stderr=DEVNULL,
+        )
+        .decode("utf-8")
+        .strip()
+    )
+
+    if len(title) > 50:
+        title = title[:50]
+        title = title + "..."
+
+    if len(artist) > 30:
+        artist = artist[:30]
+        artist = artist + "..."
+
+    if len(album) > 30:
+        album = album[:30]
+        album = album + "..."
+
+    if status == "Playing":
+        icon = ""
+    elif status == "Paused":
+        icon = ""
+    else:
+        icon = ""
+
+    if artist == "\n" and album == "\n":
+        print(create_json(f"{icon} {title} ", f"{meta}"))
+
+    else:
+        print(create_json(f"{icon} {title} - {artist} ", f"{meta}"))
+
+else:
+    print(create_json(f"NO ", "No players found", style="off"))

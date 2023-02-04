@@ -1,0 +1,88 @@
+#!/usr/bin/env python3.11
+
+from subprocess import check_output
+import json
+
+# color = "%{F#00FF00}"
+COLOR_ALT = "%{F#7c7c7c}"
+COLOR_END = "%{F-}"
+# underline = "%{u#00FF00}%{+u}"
+
+proc_info = check_output(["free", "-m"]).decode("utf-8")
+# mem_avai = float((proc_info.splitlines()[1].split()[-1]).replace("G","").replace(",",".").replace("M",""))/1000
+
+
+mem_used = (
+    float(
+        (proc_info.splitlines()[1].split()[2])
+        .replace("G", "")
+        .replace(",", ".")
+        .replace("M", "")
+    )
+    / 1024
+)
+mem_shar = (
+    float(
+        (proc_info.splitlines()[1].split()[4])
+        .replace("G", "")
+        .replace(",", ".")
+        .replace("M", "")
+    )
+    / 1024
+)
+mem_in_use = mem_used + mem_shar
+
+mem_total = (
+    float(
+        (proc_info.splitlines()[1].split()[1])
+        .replace("G", "")
+        .replace(",", ".")
+        .replace("M", "")
+    )
+    / 1024
+)
+
+
+# perc_used = mem_used/mem_total
+# print(perc_used)
+perc_used = (mem_used / mem_total) * 100
+
+if 0 <= perc_used < 20:
+    style = "verylow"
+    color = "%{F#00FF00}"
+    underline = "%{u#00FF00}%{+u}"
+elif 20 <= perc_used < 35:
+    style = "low"
+    color = "%{F#8ef902}"
+    underline = "%{u#8ef902}%{+u}"
+elif 35 <= perc_used < 45:
+    style = "med"
+    color = "%{F#baf719}"
+    underline = "%{u#baf719}%{+u}"
+elif 45 <= perc_used < 65:
+    style = "medhigh"
+    color = "%{F#FFAE00}"
+    underline = "%{u#FFAE00}%{+u}"
+elif 65 <= perc_used < 90:
+    style = "high"
+    color = "%{F#ff5800}"
+    underline = "%{u#ff5800}%{+u}"
+elif perc_used >= 90:
+    style = "veryhigh"
+    color = "%{F#FF0000}"
+    underline = "%{u#FF0000}%{+u}"
+
+
+proc_info = (
+    proc_info.replace("        ", " ").replace("      ", " ").replace("   ", " ")
+)
+
+result_dict = {
+    "text": f"{mem_used:.2f}/{mem_total:.1f}G ",
+    "tooltip": proc_info.strip(),
+    "class": style,
+}
+result_json = json.dumps(result_dict)
+
+print(result_json)
+# print(f"{underline}{COLOR_ALT}MEM{COLOR_END} {color}{mem_in_use:.2f}/{mem_total:.1f}G{COLOR_END}")

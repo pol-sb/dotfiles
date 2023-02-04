@@ -1,0 +1,123 @@
+#!/usr/bin/env python3.11
+
+import subprocess as sb
+import json
+
+# Add local ips with an icon/short name here to check and
+# display on the bottom bar.
+HOST_LIST = {
+    "Cd": "192.168.0.23",
+    "Cm": "192.168.0.27",
+    "H": "192.168.0.33",
+}
+
+MAC_ADDR = "XX:XX:XX:XX:XX:XX"
+
+
+
+def create_json(text_val, tooltip_val, class_val):
+    result_dict = {"text": text_val, "tooltip": tooltip_val, "class": class_val}
+    result_json = json.dumps(result_dict)
+    return result_json
+
+
+def get_available_hosts():
+    res_dict = {}
+    for info in HOST_LIST.items():
+        host = info[0]
+        ip_mach = info[1]
+        try:
+            sb.check_call(
+                ["ping", "-c", "1", "-W1", ip_mach],
+                stderr=sb.DEVNULL,
+                stdout=sb.DEVNULL,
+            )
+            res_dict[host] = "<span color='#44cf44'>✓</span>"
+        except sb.CalledProcessError:
+            res_dict[host] = "<span color='#eb4d4b'>X</span>"
+    return res_dict
+
+
+def check_VPN_x_tunnel(port):
+    netstat_out = sb.check_output(["netstat", "-lpnt"]).decode("utf-8").splitlines()
+    tun_entry = [entry for entry in netstat_out if "7777" in entry and "ssh" in entry]
+
+    if len(tun_entry) > 0:
+        return True
+
+
+connections_text = sb.check_output(["nmcli", "connection", "show", "--active"])
+connections_text = connections_text.decode()
+connections_text_list = connections_text.split("\n")
+
+color = "%{F#00FF00}"
+underline = "%{u#00FF00}%{+u}"
+color_ending = "%{F-}"
+
+count = 0
+
+for line in connections_text_list[1:]:
+    line = line.split()
+
+    if "vpn" in line or "wireguard" in line:
+
+        host_dict = get_available_hosts()
+
+        host_str = ""
+        for it in host_dict.items():
+            host_str += "  " + it[0] + " " + it[1]
+
+        res_json = create_json(
+            f"<span color='#44cf44'>{line[0]}</span> {host_str}",
+            "Current VPN Connection",
+            "on",
+        )
+        print(res_json)
+        count = 1
+
+    else:
+        ip_text = sb.check_output(["ip", "a"])
+        ip_text_list = ip_text.decode().split("\n")
+        for line in ip_text_list:
+            if "ppp0" in line and "inet" in line:
+                ip = line.split()[-6]
+                res_json = create_json(
+                    f"<span color='#44cf44'>VPN@VPN_x</span> ppp0: {ip}",
+                    "Current VPN Connection",
+                    "on",
+                )
+                print(res_json)
+                count = 1
+
+if count != 1:
+    color = "%{F#ff5a3e}"
+
+    router_addr = sb.check_output(["ip", "neigh"]).decode("utf-8").splitlines()
+
+    mac_addr = MAC_ADDR
+
+    if any(mac_addr in subl for subl in router_addr):
+        host_dict = get_available_hosts()
+
+        host_str = ""
+        for it in host_dict.items():
+            host_str += "  " + it[0] + " " + it[1]
+
+        res_json = create_json(
+            f"<span color='#eb4d4b'>NO VPN</span> {host_str}",
+            "Connected to home network.",
+            "on",
+        )
+        print(res_json)
+
+    elif check_VPN_x_tunnel(7777):
+        print(
+            create_json(
+                f"<span color='#44cf44'>TUNNEL@ICIQ</span> in localhost",
+                "Reverse ssh tunnel to VPN_x2 online",
+                "on",
+            )
+        )
+
+    else:
+        print(create_json(f"NO VPN", "Not connected to any VPN.", "off"))

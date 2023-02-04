@@ -1,0 +1,129 @@
+#!/usr/bin/env python3.11
+
+from subprocess import check_output
+from subprocess import CalledProcessError
+from json import dumps as jd
+
+usb_flag = False
+
+IFACE_LIST = [
+    "usb0",
+    "enp0s20f0u6",
+    "enp0s20f0u5",
+    "enp0s20f0u4",
+    "enp0s20f0u3",
+    "enp0s20f0u2",
+    "enp0s20f0u1",
+    "wlo1",
+]
+
+
+def create_json(text_val, tooltip_val):
+    result_dict = {"text": text_val, "tooltip": tooltip_val}
+    result_json = jd(result_dict)
+    return result_json
+
+
+class NetworkConnIdentifier:
+    def __init__(self) -> None:
+        device, ifconf_list = self.check_devices()
+        self.net_info(device, ifconf_list)
+
+    def check_devices(self):
+        ifconfig_string = check_output(["ifconfig"]).decode("utf-8")
+        iface_flag = 0
+        for iface in IFACE_LIST:
+            if iface in ifconfig_string:
+                iface_flag = 1
+                net_device = iface
+                ifconfig_string = check_output(["ifconfig", net_device]).decode()
+                ifconfig_list = ifconfig_string.split("\n")
+                break
+
+        net_device = iface
+        if iface_flag == 0:
+            net_device = "error"
+            print(
+                create_json(
+                    "<span color='#eb4d4b'>Wi-Fi Disabled</span>",
+                    "Internet unavailable.",
+                )
+            )
+
+        return net_device, ifconfig_list
+
+    def net_info(self, device, ifconf_list):
+
+        ip = ""
+
+        for line in ifconf_list:
+            if "inet" in line:
+                ip = line.split()[1]
+                ip = ip.strip()
+                break
+
+        if device in IFACE_LIST[:-1]:
+            if ip:
+                res_json = create_json(
+                    f"{ip} via <span color='#44cf44'>USB Modem</span>",
+                    "Current internet connection.",
+                )
+                print(res_json)
+
+            else:
+                net_device = "error"
+                print(
+                    create_json(
+                        "<span color='#eb4d4b'>NO NET via USB Modem</span>",
+                        "Internet unreachable",
+                    )
+                )
+
+        elif device == "wlo1":
+            try:
+                wifi_string = check_output(["iw", device, "link"])
+
+                wifi_string = wifi_string.decode()
+                wifi_string = wifi_string.strip()
+                wifi_string = wifi_string.splitlines()
+
+                ssid = wifi_string[1][7:].strip()
+                signal = float(wifi_string[5][9:-3].strip())
+                signal = 2 * (signal + 100)
+
+                ip_str = (
+                    check_output(["ip", "a", "show", "dev", device])
+                    .decode()
+                    .splitlines()[3]
+                )
+                ip_str = ip_str[9 : ip_str.find("/")]
+
+                res_json = create_json(
+                    f"{ip_str} in <span color='#44cf44'>{ssid}</span> ({signal:.1f}%)",
+                    "Current internet connection.",
+                )
+                print(res_json)
+
+            except CalledProcessError:
+                print(
+                    create_json(
+                        "<span color='#eb4d4b'>NO NET</span>", "Internet unavailable"
+                    )
+                )
+            except IndexError:
+                print(
+                    create_json(
+                        "<span color='#eb4d4b'>NO NET</span>", "Internet unavailable"
+                    )
+                )
+
+        else:
+            print(
+                create_json(
+                    "<span color='#eb4d4b'>wlo1 NOT FOUND</span>",
+                    "Internet unavailable",
+                )
+            )
+
+
+NetworkConnIdentifier()

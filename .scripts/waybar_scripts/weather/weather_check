@@ -1,0 +1,102 @@
+#!/usr/bin/env python3.11
+
+from requests import get as rget
+from time import strftime as stime
+import json
+
+
+def get_icon(w_desc):
+    """Gathers an appropiate icon from a json file using the weather
+    description from the weather API."""
+
+    # List of the hours considered night
+    night_hours = [20, 21, 22, 23, 0, 1, 2, 3, 4, 5, 6]
+
+    with open(f"weather_icons.json", "r") as jf:
+        icon_dict = json.load(jf)
+
+    if int(stime("%H")) in night_hours:
+        suffix = "_night"
+    else:
+        suffix = "_day"
+
+    try:
+        icon = icon_dict[w_desc + suffix]
+    except Exception:
+        icon = icon_dict["other"]
+
+    return icon
+
+
+def gather_input():
+    """Get necessary inputs for the Openweather API"""
+    with open("weather_input", "r") as f:
+        api_key, city_name = [
+            line.strip() for line in f.readlines() if not line.startswith("#")
+        ]
+        return api_key, city_name
+
+
+# Generating an url for the openweather map.
+api_key, city_name = gather_input()
+base_url = "http://api.openweathermap.org/data/2.5/weather?"
+complete_url = base_url + "appid=" + api_key + "&q=" + city_name
+
+if __name__ == "__main__":
+    try:
+
+        # Making the request to the openweather API
+        response = rget(complete_url)
+
+        x = response.json()
+
+        if x["cod"] != "404":
+
+            y = x["main"]
+            current_temperature = y["temp"]
+            current_temperature = round(current_temperature - 273.15, 3)
+
+            if 35 <= current_temperature < 50:
+                class_val = "veryhigh"
+            elif 30 <= current_temperature < 35:
+                class_val = "high"
+            elif current_temperature <= 30 and current_temperature > 25:
+                class_val = "med"
+            elif current_temperature <= 25 and current_temperature > 20:
+                class_val = "normal"
+            elif current_temperature <= 20 and current_temperature > 15:
+                class_val = "cold"
+            elif current_temperature <= 15 and current_temperature > 10:
+                class_val = "colder"
+            elif current_temperature <= 10 and current_temperature > 0:
+                class_val = "verycold"
+
+            current_temperature = str(int(current_temperature))
+
+            z = x["weather"]
+
+            weather_description = z[0]["description"]
+
+            # Gathering the icon using the weather description
+            icon = get_icon(weather_description)
+            current_temperature = current_temperature + "°C " + icon
+            result_dict = {
+                "text": current_temperature,
+                "tooltip": f"{weather_description} in {city_name}",
+                "class": class_val,
+            }
+            result_json = json.dumps(result_dict)
+
+            print(result_json)
+
+        else:
+            print(" City Not Found ")
+
+    except:
+        result_dict = {
+            "text": "NO INFO",
+            "tooltip": "Weather unavailable",
+            "class": "unavailable",
+        }
+        result_json = json.dumps(result_dict)
+        print(result_json)
